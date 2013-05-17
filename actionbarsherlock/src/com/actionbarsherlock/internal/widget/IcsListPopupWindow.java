@@ -1,5 +1,7 @@
 package com.actionbarsherlock.internal.widget;
 
+import java.lang.reflect.Method;
+
 import com.actionbarsherlock.R;
 
 import android.content.Context;
@@ -217,7 +219,15 @@ public class IcsListPopupWindow {
             }
 
             mPopup.setWindowLayoutMode(widthSpec, heightSpec);
-            //XXX mPopup.setClipToScreenEnabled(true);
+            try {
+                Method method = PopupWindow.class.getMethod("setClipToScreenEnabled", new Class[]{ boolean.class });
+                method.invoke(mPopup, true);
+            } catch (NoSuchMethodException e) {
+                mPopup.setClippingEnabled(false);
+                clipToScreen(mDropDownAnchorView, mPopup.getWidth(), height);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             // use outside touchable to dismiss drop down when touching outside of it, so
             // only set this if the dropdown is not always visible
@@ -233,6 +243,34 @@ public class IcsListPopupWindow {
             if (!mModal) {
                 mHandler.post(mHideSelector);
             }
+        }
+    }
+
+    private void clipToScreen(View anchor, int mPopupWidth, int mPopupHeight) {
+        final Rect displayFrame = new Rect();
+        anchor.getWindowVisibleDisplayFrame(displayFrame);
+        final int[] mScreenLocation = new int[2];
+        anchor.getLocationOnScreen(mScreenLocation);
+        final int[] mDrawingLocation = new int[2];
+        anchor.getLocationInWindow(mDrawingLocation);
+        boolean onTop = (displayFrame.bottom - mScreenLocation[1] - anchor.getHeight() - mDropDownVerticalOffset) <
+                mPopupHeight;
+
+        if (onTop) {
+            mDropDownVerticalOffset = 0 - mDropDownVerticalOffset - anchor.getHeight() - mPopupHeight;
+            int id = Resources.getSystem().getIdentifier("Animation.DropDownUp", "style", "android");
+            mPopup.setAnimationStyle(id);
+        }
+
+        final int displayFrameWidth = displayFrame.right - displayFrame.left;
+
+        int x = mDrawingLocation[0] + mDropDownHorizontalOffset;
+        int right = x + mPopupWidth;
+        if (right > displayFrameWidth) {
+            mDropDownHorizontalOffset = displayFrameWidth - right;
+        }
+        if (x < displayFrame.left) {
+            mDropDownHorizontalOffset = displayFrame.left - x;
         }
     }
 
